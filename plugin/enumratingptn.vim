@@ -1,76 +1,80 @@
 " Enumerate rating pattern {{{1
 "  Maintainer: hira@users.sourceforge.jp
-" Last Change: 2003/11/08 (Sat) 09:36:04.
-"     Version: 1.1
+" Last Change: 2003/12/09 (Tue) 15:19:40.
+"     Version: 1.3
 
 " example {{{1
 " $ vim enumratingptn.vim
 " :so %
-" :call Rating(1, 6)          
-" > L<1> H<1> U<4>           
-"                            
-" :call Rating(42, 37)        
-" > L<15> H<2> U<20>         
-" > L<13> H<7> U<17>         
-" > L<11> H<12> U<14>        
-" > L<9> H<17> U<11>         
-" > L<7> H<22> U<8>          
-" > L<5> H<27> U<5>          
-" > L<3> H<32> U<2>          
-"                            
-" :call Rating(1864, 570)     
-" > E169                     
-"                            
-" :call FastRating(1864, 570) 
-" > L<486> H<2> U<82>        
-" > L<484> H<7> U<79>        
-" > L<482> H<12> U<76>       
-" > ..................       
-" > L<436> H<127> U<7>       
-" > L<434> H<132> U<4>       
-" > L<432> H<137> U<1>       
+" :call Rating(1, 6)
+" :call Rating(42, 37)
+" :call Rating(1864, 570)
 
-function! Rating(p, n) "{{{1
-    call RatingR(0, 0, a:p, a:n, "L")
-endfunction
-
-function! RatingR(l, h, p, n, mode) "{{{1
-    let l:p = 4*a:l+a:h
-    if a:n == 0
-        return
-    elseif l:p - a:n > a:p
-        return
-    elseif l:p - a:n == a:p
-        echo "L<".a:l."> H<".a:h."> U<".a:n.">"
-        return
+function! Rating(p, v) "{{{1
+    if a:v < 0
+        echo "ERROR: vote must be not minus"
+        echo "usage: Rating(point, vote)"
+        return 0
     endif
-    if a:mode == "L"
-        call RatingR(a:l+1, a:h, a:p, a:n-1, a:mode)
-    endif
-    call RatingR(a:l, a:h+1, a:p, a:n-1, "H")
-endfunction
-
-function! FastRating(p, n) "{{{1
-    let l:l = (a:p+a:n)/5
-    let l:subn = a:n   - l:l
-    let l:subp = l:l*4 - a:p
-    let l:big = l:subn > l:subp ? l:subn : l:subp
-    let l:sml = l:subn < l:subp ? l:subn : l:subp
-    let l:h = (l:big - l:sml) / 2
-    let l:u = l:subn - l:h
-    if l:l*4 + l:h - l:u != a:p
-        return
-    endif
+    let l:v = a:v
+    let l:a = 0
+    let l:l = 0
     while 1
-        if l:l < 0 || l:u < 0
-            return
-        end
-        echo "L<".l:l."> H<".l:h."> U<".l:u.">"
-        let l:l = l:l - 2
-        let l:h = l:h + 5
-        let l:u = l:u - 3
+        if l:v == 0
+            if a:p == l:a
+                echo ">>>L<".l:l."> H<0> U<0>"
+            endif
+            return 0
+        endif
+        let l:dst   = a:p - l:a
+        let l:apdst = s:Abs(l:dst)
+        let l:vddst = s:Abs(l:v - l:apdst)
+        let l:rem   = (vddst / 2) + (s:Even(vddst) ? 0 : 1)
+        "echo "l:dst<".l:dst."> l:apdst<".l:apdst."> l:vddst<".l:vddst."> l:rem<".l:rem.">"
+        if l:apdst <= l:v && ((s:Even(l:apdst) && s:Even(l:v)) || (s:Odd(l:apdst) && s:Odd(l:v)))
+            if 0 < l:dst
+                echo ">>>L<".l:l."> H<".(l:apdst + l:rem)."> U<".l:rem.">"
+            else
+                echo ">>>L<".l:l."> H<".l:rem."> U<".(l:apdst + l:rem).">"
+            endif
+        endif
+        let l:v = l:v - 1
+        let l:a = l:a + 4
+        let l:l = l:l + 1
     endwhile
 endfunction
 
+" local functions {{{1
+function! s:Abs(n)
+    return a:n < 0 ?  0 - a:n : a:n
+endfunction
+function! s:Even(n)
+    return a:n % 2 == 0
+endfunction
+function! s:Odd(n)
+    return a:n % 2 == 1
+endfunction
+
+" in scheme {{{1
+"(define (rate? point vote)
+"    (if (< vote 0)
+"        (display "error")
+"        (let plus4 ((vote   vote)
+"                    (answer 0)
+"                    (p4     0))
+"            (if (= 0 vote)
+"                (if (= point answer)
+"                    (begin (display (list 0 0 p4)) (newline)))
+"                (let* ((dst   (- point answer))
+"                       (apdst (abs dst))
+"                       (vddst (abs (- vote apdst)))
+"                       (rem   (+ (/ vddst 2) (if (even? vddst) 0 1))))
+"                    (and (<= apdst vote)
+"                         (or (and (even? apdst) (even? vote))
+"                             (and (odd?  apdst) (odd?  vote)))
+"                         (if (< 0 dst)
+"                             (display (list p4 (+ apdst rem) rem))
+"                             (display (list p4 rem (+ apdst rem)))))
+"                    (plus4 (- vote 1) (+ answer 4) (+ p4 1)))))))
 "}}}1
 " vim:set nowrap foldmethod=marker expandtab:
